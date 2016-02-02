@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('BuildWidgetDetailController', BuildWidgetDetailController);
 
     BuildWidgetDetailController.$inject = ['$scope', '$modalInstance', 'build', 'collectorName'];

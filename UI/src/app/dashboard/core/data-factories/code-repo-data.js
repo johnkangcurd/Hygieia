@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
         .factory('codeRepoData', codeRepoData);
 
     function codeRepoData($http) {
@@ -18,7 +18,7 @@
 
         // get 15 days worth of commit data for the component
         function details(params) {
-            return $http.get(HygieiaConfig.local ? testDetailRoute : caDetailRoute, { params: params })
+            return $http.get(localTesting ? testDetailRoute : caDetailRoute, { params: params })
                 .then(function (response) {
                     return response.data;
                 });

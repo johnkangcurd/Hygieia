@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
         .factory('deployData', deployData);
 
     function deployData($http) {
@@ -17,7 +17,7 @@
         };
 
         function details(componentId) {
-            return $http.get(HygieiaConfig.local ? testDetailRoute : deployDetailRoute + componentId)
+            return $http.get(localTesting ? testDetailRoute : deployDetailRoute + componentId)
                 .then(function (response) {
                     return response.data;
                 });

@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('ChatOpsViewController', ChatOpsViewController)
         .filter('unsafe', function ($sce) {
             return function (val) {

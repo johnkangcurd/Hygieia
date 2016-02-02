@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
         .factory('chatOpsData', chatOpsData);
 
     function chatOpsData($http) {
@@ -15,7 +15,7 @@
         };
 
         function details(serviceUrl) {
-            return $http.get(HygieiaConfig.local ? testDetailRoute : serviceUrl).then(function (response) {
+            return $http.get(serviceUrl).then(function (response) {
 
                 return response.data;
             }, function (response) {

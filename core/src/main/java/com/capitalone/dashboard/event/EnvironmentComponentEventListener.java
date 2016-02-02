@@ -3,11 +3,14 @@ package com.capitalone.dashboard.event;
 
 import com.capitalone.dashboard.model.*;
 import com.capitalone.dashboard.repository.*;
+import com.google.common.collect.Lists;
+import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.mapping.event.AfterSaveEvent;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings("PMD")
@@ -45,30 +48,43 @@ public class EnvironmentComponentEventListener extends HygieiaMongoEventListener
     }
 
     private void processEnvironmentComponent(EnvironmentComponent environmentComponent) {
-        List<SCM> changeSet = getScmChangeSetForEnvironmentComponent(environmentComponent);
         List<Dashboard> dashboards = findTeamDashboardsForEnvironmentComponent(environmentComponent);
 
         for (Dashboard dashboard : dashboards) {
             Pipeline pipeline = getOrCreatePipeline(dashboard);
-
-            for (SCM scm : changeSet) {
-                //todo: this needs to be fixed...
-                PipelineCommit commit = new PipelineCommit(scm);
-                pipeline.addCommit(environmentComponent.getEnvironmentName(), commit);
-            }
+            addCommitsToEnvironmentStage(environmentComponent, pipeline);
             pipelineRepository.save(pipeline);
         }
 
     }
 
+    private void addCommitsToEnvironmentStage(EnvironmentComponent environmentComponent, Pipeline pipeline){
+        //find all artifacts by name, only ones that matter are between last artifact and this
+        EnvironmentStage currentStage = getOrCreateEnvironmentStage(pipeline, environmentComponent.getEnvironmentName());
 
-    //// TODO: 1/27/16 Verify: is the logic here correct?
-    private List<SCM> getScmChangeSetForEnvironmentComponent(EnvironmentComponent environmentComponent){
-        List<SCM> changeSet = new ArrayList<>();
-        Iterable<BinaryArtifact> artifacts = binaryArtifactRepository.findByArtifactNameAndArtifactVersion(environmentComponent.getComponentName(), environmentComponent.getComponentVersion());
-        for(BinaryArtifact artifact : artifacts){
+        Iterable<BinaryArtifact> artifacts;
+        BinaryArtifact oldLastArtifact = currentStage.getLastArtifact();
+        if(oldLastArtifact != null){
+            Long lastArtifactTimestamp = oldLastArtifact != null ? oldLastArtifact.getTimestamp() : null;
+            artifacts = binaryArtifactRepository.findByArtifactNameAndTimestampGreaterThan(environmentComponent.getComponentName(), lastArtifactTimestamp);
         }
-        return changeSet;
+        else{
+            artifacts = binaryArtifactRepository.findByArtifactName(environmentComponent.getComponentName());
+        }
+
+        List<BinaryArtifact> sortedArtifacts = Lists.newArrayList(artifacts);
+        Collections.sort(sortedArtifacts, BinaryArtifact.TIMESTAMP_COMPATOR);
+
+        for(BinaryArtifact artifact : sortedArtifacts){
+            for(SCM scm : artifact.getBuildInfo().getSourceChangeSet()){
+                PipelineCommit commit = new PipelineCommit(scm);
+                commit.addNewPipelineProcessedTimestamp(environmentComponent.getEnvironmentName(), environmentComponent.getAsOfDate());
+                pipeline.addCommit(environmentComponent.getEnvironmentName(), commit);
+            }
+        }
+        BinaryArtifact lastArtifact = sortedArtifacts.get(sortedArtifacts.size()-1);
+        currentStage.setLastArtifact(lastArtifact);
+
     }
 
     private List<Dashboard> findTeamDashboardsForEnvironmentComponent(EnvironmentComponent environmentComponent){

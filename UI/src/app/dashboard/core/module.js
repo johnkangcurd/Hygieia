@@ -2,5 +2,5 @@
     'use strict';
 
     // create the core module
-    angular.module(HygieiaConfig.module + '.core', []);
+    angular.module('devops-dashboard.core', []);
 })();

@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('BuildWidgetConfigController', BuildWidgetConfigController);
 
     BuildWidgetConfigController.$inject = ['modalData', '$scope', 'collectorData', '$modalInstance'];
@@ -19,6 +19,8 @@
 
         ctrl.buildDurationThreshold = 3;
         ctrl.buildConsecutiveFailureThreshold = 5;
+
+        ctrl.submitted = false;
 
         // set values from config
         if (widgetConfig) {
@@ -85,8 +87,9 @@
         }
 
         function submitForm(valid) {
+            ctrl.submitted = true;
             if (valid) {
-                var form = document.buildConfigForm;
+                var form = document.configForm;
                 var postObj = {
                     name: 'build',
                     options: {

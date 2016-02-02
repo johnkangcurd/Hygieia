@@ -2,15 +2,15 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('TestDetailsController', TestDetailsController);
 
-    TestDetailsController.$inject = ['$scope','$modalInstance', 'testResult', 'DashStatus'];
-    function TestDetailsController($scope, $modalInstance, testResult, DashStatus) {
+    TestDetailsController.$inject = ['$scope','$modalInstance', 'testResult', 'DASH_STATUS'];
+    function TestDetailsController($scope, $modalInstance, testResult, DASH_STATUS) {
         /*jshint validthis:true */
         var ctrl = this;
 
-        ctrl.statuses = DashStatus;
+        ctrl.statuses = DASH_STATUS;
         ctrl.testResult = testResult;
         ctrl.duration = msToTime(testResult.duration);
         ctrl.close = close;
@@ -56,10 +56,10 @@
         };
 
         function msToTime(duration) {
-            var milliseconds = parseInt((duration%1000)/100),
-                seconds = parseInt((duration/1000)%60),
-                minutes = parseInt((duration/(1000*60))%60),
-                hours = parseInt((duration/(1000*60*60))%24);
+            var milliseconds = parseInt((duration%1000)/100)
+                , seconds = parseInt((duration/1000)%60)
+                , minutes = parseInt((duration/(1000*60))%60)
+                , hours = parseInt((duration/(1000*60*60))%24);
 
             hours = (hours < 10) ? "0" + hours : hours;
             minutes = (minutes < 10) ? "0" + minutes : minutes;

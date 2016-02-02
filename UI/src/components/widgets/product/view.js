@@ -12,7 +12,6 @@
 
         // private properties
         var teamDashboardDetails = {},
-            teamSummaryMetrics = {},
             latestBuilds = {};
 
 
@@ -21,44 +20,126 @@
 
         // public methods
         ctrl.load = load;
-        ctrl.editTeam = editTeam;
         ctrl.addTeam = addTeam;
-        ctrl.getSummaryMetric = getSummaryMetric;
+        ctrl.editTeam = editTeam;
         ctrl.openDashboard = openDashboard;
         ctrl.viewTeamStageDetails = viewTeamStageDetails;
+
+        // public data methods
         ctrl.teamStageHasCommits = teamStageHasCommits;
         ctrl.getLatestBuildInfo = getLatestBuildInfo;
 
-        function setTeamSummaryMetrics(collectorItemId, field, data) {
-            if(!teamSummaryMetrics[collectorItemId]) {
-                teamSummaryMetrics[collectorItemId] = {
-                    codeCoverage: {
-                        number: 0,
-                        trendUp: false,
-                        successState: false
-                    },
-                    functionalTestsPassed: {
-                        number: 0,
-                        trendUp: true,
-                        successState: false
-                    },
-                    codeIssues: {
-                        number: 0,
-                        trendUp: true,
-                        successState: true
+        // set our data before we get things started
+        var widgetOptions = angular.copy($scope.widgetConfig.options);
+
+        if (widgetOptions && widgetOptions.teams) {
+            ctrl.configuredTeams = widgetOptions.teams;
+        }
+
+        // set team default values
+        _(ctrl.configuredTeams).forEach(function(team) {
+            team.summary = {
+                codeCoverage: {
+                    number: '--'
+                },
+                functionalTestsPassed: {
+                    number: '--'
+                },
+                codeIssues: {
+                    number: '--'
+                }
+            }
+        });
+
+        //region public method implementations
+        function load() {
+            getTeamStageData(widgetOptions.teams, [].concat(ctrl.stages));
+
+            var requestedData = getTeamDashboardDetails(widgetOptions.teams);
+            if(!requestedData) {
+                for(var collectorItemId in teamDashboardDetails) {
+                    getTeamComponentData(collectorItemId);
+                }
+            }
+        }
+
+        function addTeam() {
+
+            $modal.open({
+                templateUrl: 'components/widgets/product/add-team/add-team.html',
+                controller: 'addTeamController',
+                controllerAs: 'ctrl'
+            }).result.then(function(config) {
+                if(!config) {
+                    return;
+                }
+
+                // prepare our response for the widget upsert
+                var options = $scope.widgetConfig.options;
+
+                // make sure it's an array
+                if(!options.teams || !options.teams.length) {
+                    options.teams = [];
+                }
+
+                // add our new config to the array
+                options.teams.push(config);
+
+                updateWidgetOptions(options);
+            });
+        }
+
+        function editTeam(collectorItemId) {
+            var team = false;
+            _($scope.widgetConfig.options.teams)
+                .filter({collectorItemId: collectorItemId})
+                .forEach(function(t) {
+                    team = t;
+                });
+
+            if(!team) { return; }
+
+            $modal.open({
+                templateUrl: 'components/widgets/product/edit-team/edit-team.html',
+                controller: 'editTeamController',
+                controllerAs: 'ctrl',
+                resolve: {
+                    editTeamConfig: function() {
+                        return {
+                            team: team
+                        }
                     }
-                };
-            }
+                }
+            }).result.then(function(config) {
+                if(!config) {
+                    return;
+                }
 
-            var obj = teamSummaryMetrics[collectorItemId],
-                subFields = field.split('.');
+                var newOptions = $scope.widgetConfig.options;
 
-            if(subFields.length == 1) {
-                obj[field] = data;
-            }
-            else if (subFields.length == 2) {
-                obj[subFields[0]][subFields[1]] = data;
-            }
+                // take the collector item out of the team array
+                if(config.remove) {
+                    // do remove
+                    var keepTeams = [];
+
+                    _(newOptions.teams).forEach(function(team) {
+                        if(team.collectorItemId != config.collectorItemId) {
+                            keepTeams.push(team);
+                        }
+                    });
+
+                    newOptions.teams = keepTeams;
+                }
+                else {
+                    for(var x=0;x<newOptions.teams.length;x++) {
+                        if(newOptions.teams[x].collectorItemId == config.collectorItemId) {
+                            newOptions.teams[x] = config;
+                        }
+                    }
+                }
+                console.log('new config', newOptions);
+                updateWidgetOptions(newOptions);
+            });
         }
 
         function openDashboard(item) {
@@ -68,21 +149,70 @@
             }
         }
 
-        function load() {
-            var options = $scope.widgetConfig.options;
-
-            if (options && options.teams) {
-                ctrl.configuredTeams = options.teams;
+        function viewTeamStageDetails(team, stage) {
+            // only show details if we have commits
+            if(!teamStageHasCommits(team, stage)) {
+                return false;
             }
 
-            getTeamStageData(options.teams, [].concat(ctrl.stages));
-
-            var requestedData = getTeamDashboardDetails(options.teams);
-            if(!requestedData) {
-                for(var collectorItemId in teamDashboardDetails) {
-                    getTeamComponentData(collectorItemId);
+            $modal.open({
+                templateUrl: 'components/widgets/product/environment-commits/environment-commits.html',
+                controller: 'productEnvironmentCommitController',
+                controllerAs: 'ctrl',
+                size: 'lg',
+                resolve: {
+                    modalData: function () {
+                        return {
+                            team: team,
+                            stage: stage,
+                            stages: ctrl.stages
+                        };
+                    }
                 }
-            }
+            });
+        }
+        //endregion
+
+        //region public data method implementations
+        function setTeamData(collectorItemId, data) {
+            var team = false,
+                idx = false;
+
+            _(ctrl.configuredTeams).filter({'collectorItemId': collectorItemId}).forEach(function (configuredTeam, i) {
+                idx = i;
+                team = configuredTeam;
+            });
+
+            if(!team) { return; }
+
+            ctrl.configuredTeams[idx] = deepmerge(team, data);
+
+            //var obj = ctrl.configuredTeams[idx];
+            //
+            //// hackish way to update the configured teams object in place so their entire
+            //// object does not need to be replaced which would cause a full refresh of the
+            //// row instead of just the numbers
+            //for(var x in data) {
+            //    var xData = data[x];
+            //    if(typeof xData == 'object' && obj[x] != undefined) {
+            //        for(var y in xData) {
+            //            var yData = xData[y];
+            //
+            //            if(typeof yData == 'object' && obj[x][y] != undefined) {
+            //                for (var z in yData) {
+            //                    var zData = yData[z];
+            //                    obj[x][y][z] = zData;
+            //                }
+            //            }
+            //            else {
+            //                obj[x][y] = yData;
+            //            }
+            //        }
+            //    }
+            //    else {
+            //        obj[x] = xData;
+            //    }
+            //}
         }
 
         function getTeamDashboardDetails(teams) {
@@ -121,27 +251,90 @@
                 componentId = team.application.components[0].id,
                 start = moment().subtract(90, 'days').format('x');
 
+            function getCaMetric(metrics, name, fallback) {
+                var val = fallback === undefined ? false : fallback;
+                _(metrics).filter({name:name}).forEach(function(item) {
+                    val = item.value;
+                });
+                return val;
+            }
 
+            // get latest build
             buildData
                 .details({componentId: componentId, max: 1})
                 .then(function(response) {
-                    latestBuilds[collectorItemId] = response.result[0];
+                    setTeamData(collectorItemId, {latestBuild: response.result[0]})
                 });
 
+            // get latest code coverage and issues metrics
             codeAnalysisData
                 .staticDetails({componentId: componentId, max:1})
                 .then(function(response) {
                     if(response.result[0] && response.result[0].metrics) {
-                        _(response.result[0].metrics).filter({name: 'line_coverage'}).forEach(function(item) {
-                            setTeamSummaryMetrics(collectorItemId, 'codeCoverage.number', Math.round(item.value));
-                        });
+                        var metrics = response.result[0].metrics,
+                            lineCoverage = getCaMetric(metrics, 'line_coverage'),
+                            violations = getCaMetric(metrics, 'violations');
 
-                        _(response.result[0].metrics).filter({name: 'violations'}).forEach(function(item) {
-                            setTeamSummaryMetrics(collectorItemId, 'codeIssues.number', item.value);
-                        })
+                        setTeamData(collectorItemId, {
+                            summary: {
+                                codeIssues: {
+                                    number: violations
+                                },
+                                codeCoverage: {
+                                    number: Math.round(lineCoverage)
+                                }
+                            }
+                        });
                     }
                 });
 
+            // get trends for code coverage and issues
+            codeAnalysisData
+                .staticDetails({componentId: componentId, dateBegins: start})
+                .then(function(response) {
+
+                    // just need the issue and coverage metric values
+                    var data = _(response.result)
+                        .sortBy('timestamp')
+                        .map(function(result) {
+                            var daysAgo = -1 * moment.duration(moment().diff(result.timestamp)).asDays(),
+                                codeIssues = getCaMetric(result.metrics, 'violations'),
+                                codeCoverage = getCaMetric(result.metrics, 'line_coverage');
+
+                            return {
+                                codeIssues: [daysAgo, codeIssues],
+                                codeCoverage: [daysAgo, codeCoverage]
+                            }
+                        });
+
+                    // get issues and coverage as their own array
+                    var codeIssues = data.pluck('codeIssues').value(),
+                        codeCoverage = data.pluck('codeCoverage').value();
+
+                    // get our regression data to determine the trend
+                    var codeIssuesResult = regression('linear', codeIssues),
+                        codeIssuesTrendUp = codeIssuesResult.equation[0] > 0;
+
+                    var codeCoverageResult = regression('linear', codeCoverage),
+                        codeCoverageTrendUp = codeCoverageResult.equation[0] > 0;
+
+                    // set the data
+
+                    setTeamData(collectorItemId, {
+                        summary: {
+                            codeIssues: {
+                                trendUp: codeIssuesTrendUp,
+                                successState: !codeIssuesTrendUp
+                            },
+                            codeCoverage: {
+                                trendUp: codeCoverageTrendUp,
+                                successState: codeCoverageTrendUp
+                            }
+                        }
+                    });
+                });
+
+            // calculate the current state for percent tests passed
             testSuiteData.details({componentId: componentId, max:1})
                 .then(function(response) {
                     var totalPassed = 0,
@@ -153,84 +346,41 @@
                     });
 
                     var testPassedPercent = totalTests ? totalPassed/totalTests : 0;
-                    setTeamSummaryMetrics(collectorItemId, 'functionalTestsPassed.number', Math.round(testPassedPercent));
-                });
-        }
-
-        function getSummaryMetric(collectorItemId, type) {
-            var metrics = teamSummaryMetrics[collectorItemId];
-            return metrics ? metrics[type] : {};
-        }
-
-        function editTeam(team) {
-
-            $modal.open({
-                templateUrl: 'components/widgets/product/edit-team/edit-team.html',
-                controller: 'editTeamController',
-                controllerAs: 'ctrl',
-                resolve: {
-                    editTeamConfig: function() {
-                        return {
-                            team: team
-                        }
-                    }
-                }
-            }).result.then(function(config) {
-                if(!config) {
-                    return;
-                }
-
-                var options = $scope.widgetConfig.options;
-
-                // take the collector item out of the team array
-                if(config.remove) {
-                    // do remove
-                    var keepTeams = [];
-
-                    _(options.teams).forEach(function(team) {
-                        if(team.collectorItemId != config.collectorItemId) {
-                            keepTeams.push(team);
+                    setTeamData(collectorItemId, {
+                        summary:{
+                            functionalTestsPassed:{
+                                number: Math.round(testPassedPercent)
+                            }
                         }
                     });
+                });
 
-                    options.teams = keepTeams;
-                }
-                else {
-                    for(var x=0;x<options.teams.length;x++) {
-                        if(options.teams[x].collectorItemId == config.collectorItemId) {
-                            options.teams[x] = config;
+            // calculate trend for percent of tests passed
+            testSuiteData.details({componentId: componentId, endDateBegins: start, endDateEnds:moment().format('x')})
+                .then(function(response) {
+                    var data = _(response.result)
+                        .sortBy('timestamp')
+                        .map(function(result) {
+                            var daysAgo = -1 * moment.duration(moment().diff(result.timestamp)).asDays(),
+                                totalPassed = result.successCount || 0,
+                                totalTests = result.totalCount,
+                                percentPassed = totalTests ? totalPassed/totalTests : 0;
+
+                            return [daysAgo, percentPassed];
+                        }).value();
+
+                    var passedPercentResult = regression('linear', data),
+                        passedPercentTrendUp = passedPercentResult.equation[0] > 0;
+
+                    setTeamData(collectorItemId, {
+                        summary: {
+                            functionalTestsPassed: {
+                                trendUp: passedPercentTrendUp,
+                                successState: passedPercentTrendUp
+                            }
                         }
-                    }
-                }
-
-                updateWidgetOptions(options);
-            });
-        }
-
-        function addTeam() {
-
-            $modal.open({
-                templateUrl: 'components/widgets/product/add-team/add-team.html',
-                controller: 'addTeamController',
-                controllerAs: 'ctrl'
-            }).result.then(function(config) {
-                if(!config) {
-                    return;
-                }
-
-                // prepare our response for the widget upsert
-                var options = $scope.widgetConfig.options;
-
-                // make sure it's an array
-                if(!options.teams || !options.teams.length) {
-                    options.teams = [];
-                }
-
-                // add our new config to the array
-                options.teams.push(config);
-
-                updateWidgetOptions(options);
-            });
+                    });
+                });
         }
 
         function updateWidgetOptions(options) {
@@ -266,28 +416,7 @@
             }
         }
 
-        function viewTeamStageDetails(team, stage) {
-            // only show details if we have commits
-            if(!teamStageHasCommits(team, stage)) {
-                return false;
-            }
 
-            $modal.open({
-                templateUrl: 'components/widgets/product/environment-commits/environment-commits.html',
-                controller: 'productEnvironmentCommitController',
-                controllerAs: 'ctrl',
-                size: 'lg',
-                resolve: {
-                    modalData: function () {
-                        return {
-                            team: team,
-                            stage: stage,
-                            stages: ctrl.stages
-                        };
-                    }
-                }
-            });
-        }
 
         function getStageDurationStats(a) {
             var r = {mean: 0, variance: 0, deviation: 0}, t = a.length;
@@ -297,7 +426,6 @@
         }
 
         function getTeamStageSummary(stageData) {
-
             return {
                 commitsInsideTimeframe: _(stageData.commits).filter(function(c) { return !c.errorState; }).value().length,
                 commitsOutsideTimeframe: _(stageData.commits).filter({errorState:true}).value().length,
@@ -339,7 +467,7 @@
                     var average = moment.duration(stageData.stageAverageTime);
 
                     return {
-                        days: average.days(),
+                        days: Math.floor(average.asDays()),
                         hours: average.hours(),
                         minutes: average.minutes()
                     }
@@ -353,8 +481,6 @@
                 start = now.subtract(90, 'days').format('x');
 
             pipelineData.commits(start, nowTimestamp, _(teams).pluck('collectorItemId').value()).then(function(teams) {
-                var response = {};
-
                 // start processing response by looping through each team
                 _(teams).each(function(team) {
                     var teamStageData = {},
@@ -476,50 +602,52 @@
                         totalCommits: 0
                     },
                         commitTimeToProd = _(team.stages)
-                        // limit to prod
-                        .filter(function(val, key) {
-                            return key == 'Prod'
-                        })
-                        // get commits
-                        .pluck('commits')
-                        // make all commits a single array
-                        .reduce(function(num, commits){ return num + commits; })
-                        // they should, but make sure the commits have a prod timestamp
-                        .filter(function(commit) {
-                            return commit.processedTimestamps && commit.processedTimestamps['Prod'];
-                        })
-                        // calculate their time to prod
-                        .map(function(commit) {
-                            return commit.processedTimestamps['Prod'] - commit.commit.scmCommitTimestamp;
-                        });
+                            // limit to prod
+                            .filter(function(val, key) {
+                                return key == 'Prod'
+                            })
+                            // get commits
+                            .pluck('commits')
+                            // make all commits a single array
+                            .reduce(function(num, commits){ return num + commits; })
+                            // they should, but make sure the commits have a prod timestamp
+                            .filter(function(commit) {
+                                return commit.processedTimestamps && commit.processedTimestamps['Prod'];
+                            })
+                            // calculate their time to prod
+                            .map(function(commit) {
+                                return {
+                                    duration: commit.processedTimestamps['Prod'] - commit.commit.scmCommitTimestamp,
+                                    commitTimestamp: commit.commit.scmCommitTimestamp
+                                };
+                            });
 
 
                     teamProdData.totalCommits = commitTimeToProd.length;
 
                     if (commitTimeToProd.length > 1) {
-                        var averageDuration = _(commitTimeToProd).reduce(function(a,b) {
+                        var averageDuration = _(commitTimeToProd).pluck('duration').reduce(function(a,b) {
                             return a + b;
                         }) / commitTimeToProd.length;
 
-                        teamProdData.averageDays = moment.duration(averageDuration).days();
+                        teamProdData.averageDays = Math.floor(moment.duration(averageDuration).asDays());
+
+                        var plotData = _(commitTimeToProd).map(function(ttp) {
+                            var daysAgo = -1*moment.duration(moment().diff(ttp.commitTimestamp)).asDays();
+                            return [daysAgo, ttp.duration];
+                        }).value();
+
+                        var averageToProdResult = regression('linear', plotData);
+                        teamProdData.trendUp = averageToProdResult.equation[0] > 0;
                     }
 
-                    // set all the team data in a key that we can
-                    // easily get to with collector item id
-                    response[team.collectorItemId] = {
+                    setTeamData(team.collectorItemId, {
                         stages: teamStageData,
                         prod: teamProdData
-                    };
-                });
-
-                // set our data back on the controller
-                for (var collectorItemId in response) {
-                    // set the data for a given collectorItemId
-                    _(ctrl.configuredTeams).filter({'collectorItemId': collectorItemId}).forEach(function (configuredTeam) {
-                        angular.extend(configuredTeam, response[collectorItemId]);
                     });
-                }
+                });
             });
         }
+        //endregion
     }
 })();

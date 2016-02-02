@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('CodeAnalysisViewController', CodeAnalysisViewController);
 
     CodeAnalysisViewController.$inject = ['$scope', 'codeAnalysisData', 'testSuiteData', '$q', '$filter', '$modal'];
@@ -122,7 +122,7 @@
                     }
                     return result;
                 }, allZeros);
-                var passed = aggregate.successCount;
+                var passed = aggregate.totalCount - aggregate.failureCount - aggregate.failureCount - aggregate.skippedCount;
                 var allPassed = aggregate.successCount === aggregate.totalCount;
                 var success = allPassed ? 100 : ((passed / (aggregate.totalCount)) * 100);
 

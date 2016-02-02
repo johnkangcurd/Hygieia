@@ -6,11 +6,11 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
 
         // used by widgets to set their current state
         // CONFIGURE will render the common config screen instead of the widget content
-        .constant('WidgetState', {
+        .constant('WIDGET_STATE', {
             READY: 1,
             CONFIGURE: 2,
             WAITING: 3,
@@ -19,14 +19,14 @@
 
         // constant to be used by widgets to set their state
         // ERROR: causes the widget's panel to use the 'panel-danger' class
-        .constant('DisplayState', {
+        .constant('DISPLAY_STATE', {
             DEFAULT: 1,
             ERROR: 2
         })
         .directive('widget', widgetDirective);
 
-    widgetDirective.$inject = ['$controller', '$http', '$templateCache', '$compile', 'widgetManager', '$modal', 'WidgetState', 'DisplayState', '$interval', 'dashboardData','$cookies'];
-    function widgetDirective($controller, $http, $templateCache, $compile, widgetManager, $modal, WidgetState, DisplayState, $interval, dashboardData,$cookies) {
+    widgetDirective.$inject = ['$controller', '$http', '$templateCache', '$compile', 'widgetManager', '$modal', 'WIDGET_STATE', 'DISPLAY_STATE', '$interval', 'dashboardData','$cookies'];
+    function widgetDirective($controller, $http, $templateCache, $compile, widgetManager, $modal, WIDGET_STATE, DISPLAY_STATE, $interval, dashboardData,$cookies) {
         return {
             templateUrl: 'app/dashboard/views/widget.html',
             require: '^widgetContainer',
@@ -47,7 +47,6 @@
             scope.container = containerController;
             scope.widgetDefinition = widgetManager.getWidget(attrs.name);
             scope.title = attrs.title || scope.widgetDefinition.view.defaults.title;
-            scope.header = attrs.header ? attrs.header != 'false' : true;
 
 
             // when the widget loads, register it with the container which will then call back to process
@@ -71,7 +70,7 @@
                 }
                 else if (!configFromApi) {
                     if (scope.widgetDefinition.config) {
-                        scope.state = WidgetState.CONFIGURE;
+                        scope.state = WIDGET_STATE.CONFIGURE;
                     }
                 }
 
@@ -80,13 +79,13 @@
         }
 
         function controller($scope, $element) {
-            $scope.widget_state = WidgetState;
-            $scope.display_state = DisplayState;
+            $scope.widget_state = WIDGET_STATE;
+            $scope.display_state = DISPLAY_STATE;
 
             // default variables
             $scope.title = '';
-            $scope.state = WidgetState.READY;
-            $scope.display = DisplayState.DEFAULT;
+            $scope.state = WIDGET_STATE.READY;
+            $scope.display = DISPLAY_STATE.DEFAULT;
 
             // to be set by link
             $scope.widgetConfig = null;
@@ -98,7 +97,7 @@
             $scope.alerts = [];
 
 
-            $scope.upsertWidget = upsertWidget;
+
             $scope.closeAlert = function(index) {
                 $scope.alerts.splice(index, 1);
             };
@@ -122,7 +121,7 @@
             {
 
                 $scope.owner=data;
-                if ($scope.owner == $cookies.username || $cookies.username == 'admin')
+                if ($scope.owner == $cookies.username || $cookies.username == "admin")
                 {
                     configModal();
                 }
@@ -150,45 +149,42 @@
 
                 // when the widget closes if an object is passed we'll assume it's an updated
                 // widget configuration so try and send it to the api or update the existing one
-                $modal.open(modalConfig).result.then(upsertWidget);
-            }
+                $modal.open(modalConfig).result.then(function (newWidgetConfig) {
+                    if (newWidgetConfig) {
+                        // use existing values if they're not defined
+                        angular.extend($scope.widgetConfig, newWidgetConfig);
 
-            function upsertWidget(newWidgetConfig) {
-                if (newWidgetConfig) {
-                    // use existing values if they're not defined
-                    angular.extend($scope.widgetConfig, newWidgetConfig);
+                        // support single value or array values for collectorItemId
+                        if ($scope.widgetConfig.collectorItemId) {
+                            $scope.widgetConfig.collectorItemIds = [$scope.widgetConfig.collectorItemId];
+                            delete $scope.widgetConfig.collectorItemId;
+                        }
 
-                    // support single value or array values for collectorItemId
-                    if ($scope.widgetConfig.collectorItemId) {
-                        $scope.widgetConfig.collectorItemIds = [$scope.widgetConfig.collectorItemId];
-                        delete $scope.widgetConfig.collectorItemId;
+                        dashboardData
+                            .upsertWidget($scope.dashboard.id, $scope.widgetConfig)
+                            .then(function (response) {
+                                // response comes back with two properties, a widget and a component
+                                // we need to update the component on the dashboard so that when the
+                                // widget loads it will be able to get to the collector data. we
+                                // then need to update the widget configuration stored on the container
+
+                                // add or update the widget from the response.
+                                // required when a new widget id is created
+                                if(response.widget !== null && typeof response.widget == 'object') {
+                                    angular.extend($scope.widgetConfig, response.widget);
+                                }
+
+                                // save the widget locally
+                                $scope.container.upsertWidget($scope.widgetConfig);
+                                $scope.container.upsertComponent(response.component);
+
+                                // TODO: should probably call back to the widget's getState method
+                                $scope.state = WIDGET_STATE.READY;
+
+                                init();
+                            });
                     }
-
-                    console.log('New Widget Config', $scope.widgetConfig);
-                    dashboardData
-                        .upsertWidget($scope.dashboard.id, $scope.widgetConfig)
-                        .then(function (response) {
-                            // response comes back with two properties, a widget and a component
-                            // we need to update the component on the dashboard so that when the
-                            // widget loads it will be able to get to the collector data. we
-                            // then need to update the widget configuration stored on the container
-
-                            // add or update the widget from the response.
-                            // required when a new widget id is created
-                            if(response.widget !== null && typeof response.widget == 'object') {
-                                angular.extend($scope.widgetConfig, response.widget);
-                            }
-
-                            // save the widget locally
-                            $scope.container.upsertWidget($scope.widgetConfig);
-                            $scope.container.upsertComponent(response.component);
-
-                            // TODO: should probably call back to the widget's getState method
-                            $scope.state = WidgetState.READY;
-
-                            init();
-                        });
-                }
+                });
             }
 
             // redraws the widget which forces it to go through the entire flow
@@ -197,7 +193,7 @@
                 stopInterval();
 
                 // don't request if widget is not in the read state
-                if ($scope.state != WidgetState.READY) {
+                if ($scope.state != WIDGET_STATE.READY) {
                     return;
                 }
 
@@ -244,7 +240,7 @@
 
                 // TODO: make timeout a setting in the widget configuration
                 if($scope.widgetViewController && $scope.widgetViewController.load) {
-                    refreshInterval = $interval(refresh, HygieiaConfig.refresh * 1000);
+                    refreshInterval = $interval(refresh, 60000);
                 }
             }
 

@@ -6,7 +6,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('CapOneTemplateController', CapOneTemplateController);
 
     CapOneTemplateController.$inject = [];

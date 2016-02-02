@@ -6,12 +6,14 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('DashboardController', DashboardController);
 
     DashboardController.$inject = ['dashboard', '$location'];
     function DashboardController(dashboard, $location) {
         var ctrl = this;
+
+        ctrl.hasComponents = hasComponents;
 
         // if dashboard isn't available through resolve it may have been deleted
         // so redirect to the home screen
@@ -27,5 +29,10 @@
         ctrl.dashboard = dashboard;
 
         console.log('Dashboard', dashboard);
+
+
+        function hasComponents(names) {
+
+        }
     }
 })();

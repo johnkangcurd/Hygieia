@@ -2,11 +2,11 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('pipelineViewController', pipelineViewController);
 
-    pipelineViewController.$inject = ['$scope', 'deployData', 'WidgetState', '$q'];
-    function pipelineViewController($scope, deployData, WidgetState, $q) {
+    pipelineViewController.$inject = ['$scope', 'deployData', 'WIDGET_STATE', '$q'];
+    function pipelineViewController($scope, deployData, WIDGET_STATE, $q) {
         /*jshint validthis:true */
         var ctrl = this;
 
@@ -31,7 +31,7 @@
             // if no valid mapping exists go back to configuration state
             if(configLength === 0) {
                 $scope.widgetConfig.options.mappings = {};
-                $scope.setState(WidgetState.CONFIGURE);
+                $scope.setState(WIDGET_STATE.CONFIGURE);
             } else {
                 var deferred = $q.defer();
                 deployData.details($scope.dashboard.application.components[0].id).then(function(data) {
@@ -124,7 +124,7 @@
                 ctrl.units = units;
             } else {
                 // may have been configured for another app so set to config mode
-                $scope.setState(WidgetState.CONFIGURE);
+                $scope.setState(WIDGET_STATE.CONFIGURE);
             }
         }
 

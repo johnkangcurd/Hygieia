@@ -33,43 +33,19 @@ var localStorageSupported = (function () {
 
     document.getElementsByTagName('head')[0].appendChild(link);
 
-    // create the angular app
-    angular.module(HygieiaConfig.module, [
+    // creat the angular app
+    angular.module('devops-dashboard', [
         'ngAnimate',
         'ngSanitize',
         'ngRoute',
-        'typeaheadDropdown.tpl',
-        HygieiaConfig.module + '.core',
+        'devops-dashboard.core',
         'ui.bootstrap',
         'fitText',
         'angular-chartist',
         'ngCookies',
-        'validation.match',
-        'apg.typeaheadDropdown',
-        'typeahead-focus'
+        'validation.match'
     ])
-    .config(['$httpProvider',
-        // intercepting the http provider allows us to use relative routes
-        // in data providers and then redirect them to a remote api if
-        // necessary
-        function ($httpProvider) {
-            $httpProvider.interceptors.push(function () {
-                return {
-                    request: function (config) {
-                        var path = config.url;
-                        if(config.url.substr(0, 1) != '/') {
-                            path = '/' + config.url;
-                        }
 
-                        if(!!HygieiaConfig.api && path.substr(0, 5) == '/api/') {
-                            config.url = HygieiaConfig.api + path;
-                        }
-
-                        return config;
-                    }
-                };
-            });
-        }])
     .config(function ($routeProvider) {
             $routeProvider
                 // main dashboard page

@@ -6,7 +6,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
         .directive('widgetContainer', widgetContainer);
 
     widgetContainer.$inject = ['$compile'];

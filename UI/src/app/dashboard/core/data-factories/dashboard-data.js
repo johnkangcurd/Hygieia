@@ -5,11 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
-        .constant('DashboardType', {
-            PRODUCT: 'product',
-            TEAM: 'team'
-        })
+        .module('devops-dashboard.core')
         .factory('dashboardData', dashboardData);
 
     function dashboardData($http) {
@@ -28,8 +24,7 @@
             detail: detail,
             create: create,
             delete: deleteDashboard,
-            upsertWidget: upsertWidget,
-            types: types
+            upsertWidget: upsertWidget
         };
 
         // reusable helper
@@ -41,23 +36,23 @@
 
         // gets list of dashboards
         function search() {
-            return getPromise(HygieiaConfig.local ? testSearchRoute : dashboardRoute);
+            return getPromise(localTesting ? testSearchRoute : dashboardRoute);
         }
 
         //gets list of owned dashboard
         function mydashboard(username){
-          return getPromise(HygieiaConfig.local ? testOwnedRoute : mydashboardRoute+ '/?username=' + username);
+          return getPromise(localTesting ? testOwnedRoute : mydashboardRoute+ "/" + username);
         }
 
-        //gets dashboard owner from dashboard title
+        //gets dashboard owner from dashboard titile
         function myowner(title)
         {
-            return getPromise(HygieiaConfig.local ? testOwnedRoute : myownerRoute + "/" + title );
+            return getPromise(localTesting ? testOwnedRoute : myownerRoute + "/" + title );
         }
 
         // gets info for a single dashboard including available widgets
         function detail(id) {
-            return getPromise(HygieiaConfig.local ? testDetailRoute : dashboardRoute + '/' + id);
+            return getPromise(localTesting ? testDetailRoute : dashboardRoute + '/' + id);
         }
 
         // creates a new dashboard
@@ -76,26 +71,10 @@
             });
         }
 
-        function types() {
-            return [
-                {
-                    "id": "team",
-                    "name": "Team"
-                },
-                {
-                    "id": "product",
-                    "name": "Product"
-                }
-            ];
-
-        }
-
         // can be used to add a new widget or update an existing one
         function upsertWidget(dashboardId, widget) {
             // create a copy so we don't modify the original
             widget = angular.copy(widget);
-
-            console.log('New Widget Config', widget);
 
             var widgetId = widget.id;
 

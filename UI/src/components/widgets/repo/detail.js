@@ -2,15 +2,15 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('RepoDetailController', RepoDetailController);
 
-    RepoDetailController.$inject = ['$modalInstance', 'commits', 'DashStatus'];
-    function RepoDetailController($modalInstance, commits, DashStatus) {
+    RepoDetailController.$inject = ['$modalInstance', 'commits', 'DASH_STATUS'];
+    function RepoDetailController($modalInstance, commits, DASH_STATUS) {
         /*jshint validthis:true */
         var ctrl = this;
 
-        ctrl.statuses = DashStatus;
+        ctrl.statuses = DASH_STATUS;
         ctrl.commits = commits;
 
         ctrl.close = close;

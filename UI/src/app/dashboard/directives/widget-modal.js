@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
         .directive('widgetModal', widgetModal);
 
     function widgetModal() {
@@ -13,15 +13,12 @@
             restrict: 'E',
             replace: true,
             transclude: true,
-            scope: true,
-            link: function ($scope, $element, $attributes) {
-
-                $scope.title = $attributes.widgetModalTitle;
-                $scope.close = $attributes.widgetModalClose;
+            scope: {
+                title: '@widgetModalTitle'
             },
+            // TODO: use the modal classes instead of panels
             template: '<div class="widget-modal">' +
-            '<button type="button" class="widget-modal-close" ng-click="$close()" ng-if="close" aria-hidden="true">&times;</button>' +
-            '<div class="widget-modal-heading" ng-if="title">{{title}}</div>' +
+            '<div class="widget-modal-heading">{{::title}}</div>' +
             '<div class="widget-modal-body" ng-transclude></div>' +
             '</div>'
         };

@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('deployConfigController', deployConfigController);
 
     deployConfigController.$inject = ['modalData', 'collectorData','$modalInstance'];

@@ -2,17 +2,17 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module)
+        .module('devops-dashboard')
         .controller('deployViewController', deployViewController);
 
-    deployViewController.$inject = ['$scope', 'DashStatus', 'deployData', 'DisplayState', '$q', '$modal'];
-    function deployViewController($scope, DashStatus, deployData, DisplayState, $q, $modal) {
+    deployViewController.$inject = ['$scope', 'DASH_STATUS', 'deployData', 'DISPLAY_STATE', '$q', '$modal'];
+    function deployViewController($scope, DASH_STATUS, deployData, DISPLAY_STATE, $q, $modal) {
         /*jshint validthis:true */
         var ctrl = this;
 
         // public variables
         ctrl.environments = [];
-        ctrl.statuses = DashStatus;
+        ctrl.statuses = DASH_STATUS;
 
         ctrl.load = load;
         ctrl.showDetail = showDetail;
@@ -108,7 +108,7 @@
 
         function defaultStateCallback(isDefaultState) {
             //$scope.$apply(function() {
-                $scope.display = isDefaultState ? DisplayState.DEFAULT : DisplayState.ERROR;
+                $scope.display = isDefaultState ? DISPLAY_STATE.DEFAULT : DISPLAY_STATE.ERROR;
             //});
         }
 

@@ -4,7 +4,7 @@
 (function() {
 	'use strict';
 
-	angular.module(HygieiaConfig.module).controller('RepoConfigController',
+	angular.module('devops-dashboard').controller('RepoConfigController',
 			RepoConfigController);
 
 	RepoConfigController.$inject = [ 'modalData', '$modalInstance',

@@ -5,7 +5,7 @@
     'use strict';
 
     angular
-        .module(HygieiaConfig.module + '.core')
+        .module('devops-dashboard.core')
         .factory('signupData', signupData);
 
     function signupData($http) {
@@ -34,7 +34,7 @@
     				'username': id,
     				'password': passwd
     			};
-          if(HygieiaConfig.local)
+          if(localTesting)
           {
             console.log("In local testing");
             return getPromise(id,passwd,testDetailRoute);
